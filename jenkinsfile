@@ -1,0 +1,78 @@
+pipeline {
+
+    agent any
+
+    environment {
+        IMAGE_NAME = "multibranch-demo"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh """
+                    docker build \
+                    -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                """
+            }
+        }
+
+        stage('Run Docker Container') {
+            steps {
+                sh """
+                    docker rm -f ${IMAGE_NAME}-${BUILD_NUMBER} || true
+
+                    docker run -d \
+                    --name ${IMAGE_NAME}-${BUILD_NUMBER} \
+                    -p 8081:5000 \
+                    -e APP_BRANCH=${BRANCH_NAME} \
+                    ${IMAGE_NAME}:${BUILD_NUMBER}
+                """
+            }
+        }
+
+        stage('Test Application') {
+            steps {
+                sh """
+                    sleep 5
+
+                    docker exec \
+                    ${IMAGE_NAME}-${BUILD_NUMBER} \
+                    python -c "import urllib.request; print(urllib.request.urlopen('http://localhost:5000/health').read().decode())"
+                """
+            }
+        }
+
+        stage('Docker Image List') {
+            steps {
+                sh 'docker images'
+            }
+        }
+
+    }
+
+    post {
+
+        success {
+            echo "Docker pipeline successful"
+            echo "Branch: ${BRANCH_NAME}"
+        }
+
+        failure {
+            echo "Docker pipeline failed"
+        }
+
+        always {
+            sh """
+                docker rm -f ${IMAGE_NAME}-${BUILD_NUMBER} || true
+            """
+        }
+    }
+}
+
