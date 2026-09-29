@@ -1,5 +1,3 @@
-
-
 pipeline {
 
     agent any
@@ -32,7 +30,7 @@ pipeline {
 
                     docker run -d \
                     --name ${IMAGE_NAME}-${BUILD_NUMBER} \
-                    -p 0:5000 \
+                    -p 8081:5000 \
                     -e APP_BRANCH=${BRANCH_NAME} \
                     ${IMAGE_NAME}:${BUILD_NUMBER}
                 """
